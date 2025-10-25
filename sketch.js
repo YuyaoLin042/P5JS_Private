@@ -3,6 +3,10 @@ let flowers = [];      // 存储所有花朵对象的数组
 let vase;              // 花瓶对象
 let currentFlowerType = 0; // 当前选择的花朵类型 (0: 郁金香, 1: 雏菊)
 
+let highlightedFlowerIndex = -1;
+const DELETE_RADIUS = 28; // 鼠标与花中心小于这个距离就高亮
+
+
 class Flower {
   constructor(x, y, stemHeight, type) {
     this.x = x;
@@ -190,6 +194,26 @@ function draw() {
   for (let i = flowers.length - 1; i >= 0; i--) {
     flowers[i].display();
   }
+
+  // 检测鼠标是否靠近花朵
+  highlightedFlowerIndex = -1;
+  for (let i = flowers.length - 1; i >= 0; i--) {
+    if (dist(mouseX, mouseY, flowers[i].x, flowers[i].y) <= DELETE_RADIUS) {
+      highlightedFlowerIndex = i;
+      break; // 只高亮最上面的一朵
+    }
+  }
+
+  // 绘制高亮边框
+  if (highlightedFlowerIndex !== -1) {
+    noFill();
+    stroke(30, 144, 255); // (Dodger Blue)
+    strokeWeight(2.5);
+    const f = flowers[highlightedFlowerIndex];
+    circle(f.x, f.y, DELETE_RADIUS * 2);
+  }
+
+
   // 绘制提示文字
   drawUI();
 }
@@ -208,11 +232,11 @@ function drawUI() {
   // 文本内容
   let currentTypeText = currentFlowerType === 0 ? "郁金香" : "雏菊";
   let flowerName = ["郁金香", "雏菊", "玫瑰"][currentFlowerType];
-  text(`当前花朵类型: ${flowerName}  (T: 郁金香, D: 雏菊, R: 玫瑰)`, marginX, marginY);
+  text(`当前花朵类型: ${flowerName}  (按键切换花朵类型, T: 郁金香, D: 雏菊, R: 玫瑰)`, marginX, marginY);
 
   // text(`当前花朵类型: ${currentTypeText}  (T: 郁金香, D: 雏菊)`, marginX, marginY);
   text("点击鼠标左键放置花朵", marginX, marginY + 24);
-  text("按键切换花朵类型", marginX, marginY + 48);
+  text("按X删除选中花朵", marginX, marginY + 48);
 
   // 预览花朵显示在右上角（自适应）
   const previewX = windowWidth - marginX - 50;
@@ -244,7 +268,22 @@ function mouseClicked() {
 function keyPressed() {
   if (key === 't' || key === 'T') currentFlowerType = 0; // 郁金香
   else if (key === 'd' || key === 'D') currentFlowerType = 1; // 雏菊
-  else if (key === 'r' || key === 'R') currentFlowerType = 2; // 🌹玫瑰
+  else if (key === 'r' || key === 'R') currentFlowerType = 2; // 玫瑰
+
+  // 删除高亮花朵
+  if (key === 'x' || key === 'X') {
+    if (highlightedFlowerIndex !== -1) {
+      flowers.splice(highlightedFlowerIndex, 1);
+      highlightedFlowerIndex = -1; // 删除后清空高亮
+    }
+  }
+
+  // 撤销最后一朵
+  if (key === 'Backspace') {
+    if (flowers.length > 0) flowers.pop();
+  }
+
+
 }
 
 
