@@ -1,259 +1,103 @@
-// --- 全局变量 ---
 let flowers = [];      // 存储所有花朵对象的数组
 let vase;              // 花瓶对象
 let currentFlowerType = 0; // 当前选择的花朵类型 (0: 郁金香, 1: 雏菊, 2: 玫瑰, 3: 向日葵)
+let currentVaseType = 0; // 当前选择的花瓶类型 (0: 梯形/经典, 1: 圆形/现代, 2: 曲线/复古)
 let currentVaseType = 0; // 当前选择的花瓶类型 (0: 经典, 1: 现代, 2: 复古)
 
 let highlightedFlowerIndex = -1;
 const DELETE_RADIUS = 28; // 鼠标与花中心小于这个距离就高亮
 
 
+// Flower 类保持不变，因为它不是本次优化的重点
+
 class Flower {
-  constructor(x, y, stemHeight, type) {
-    this.x = x;
-    this.y = y;
-    this.stemHeight = stemHeight;
-    this.type = type; // 0: 郁金香, 1: 雏菊, 2: 玫瑰, 3: 向日葵
+constructor(x, y, stemHeight, type) {
+this.x = x;
+@@ -81,7 +83,7 @@ class Flower {
+ellipse(0, 0, petalSize * 0.6, petalSize * 0.6);
+}
 
-    this.stemColor   = color(50, 150, 50);
-    this.leafColor   = color(80, 180, 80, 200); // 新增：叶子颜色，带一点透明度
-
-    // 按类型设定颜色
-    if (this.type === 0) { // 郁金香
-      this.petalColor  = color(255, 100, 100);
-      this.centerColor = color(255, 200, 0);
-    } else if (this.type === 1) { // 雏菊
-      this.petalColor  = color(255, 255, 150);
-      this.centerColor = color(255, 150, 0);
-    } else if (this.type === 2) { // 玫瑰
-      this.petalColor  = color(220, 0, 70);  // 深红
-      this.centerColor = color(150, 0, 30);
-    } else if (this.type === 3) { // 向日葵
-      this.petalColor  = color(255, 200, 0); // 亮黄
-      this.centerColor = color(50, 50, 50);  // 深棕色花盘
-    }
-  }
-
-  display() {
-    push();
-    translate(this.x, this.y);
-
-    // 1. 花茎 (最底层)
-    stroke(this.stemColor);
-    strokeWeight(2);
-    line(0, 0, 0, this.stemHeight);
-    
-    // 2. 绿叶 (在花茎上方，花朵下方)
-    this.drawLeaves();
-
-    // 3. 花朵 (最上层)
-    noStroke();
-    if (this.type === 0) this.drawTulip();
-    else if (this.type === 1) this.drawDaisy();
-    else if (this.type === 2) this.drawRose();
-    else if (this.type === 3) this.drawSunflower(); 
-    
-    pop();
-  }
-  
-  // 新增：绘制叶子
-  drawLeaves() {
-    noStroke();
-    fill(this.leafColor);
-    
-    const leafCount = 2; // 每朵花绘制两片叶子
-    const leafBaseY = this.stemHeight * 0.5; // 叶子大致的位置
-
-    for(let i = 0; i < leafCount; i++) {
-        push();
-        const side = (i % 2 === 0) ? 1 : -1; // 交替在茎的两侧
-        const rotation = random(PI/6, PI/3) * side; // 旋转角度
-        const stemY = leafBaseY + random(-50, 50); // 随机叶子高度
-
-        translate(0, stemY);
-        rotate(rotation);
-        
-        // 叶子形状：使用贝塞尔曲线模拟叶片
-        const w = 15;
-        const h = 50;
-        
-        beginShape();
-        vertex(0, 0);
-        // 上半部曲线
-        bezierVertex(w, -h/4, w, -h * 0.8, 0, -h); 
-        // 下半部曲线
-        bezierVertex(-w, -h * 0.8, -w, -h/4, 0, 0);
-        endShape(CLOSE);
-        
-        pop();
-    }
-  }
-
-  // 郁金香 (不变)
-  drawTulip() {
-    const size = 30;
-    fill(this.petalColor);
-    beginShape();
-    vertex(0, 0);
-    bezierVertex(size/2, -size/3, size/2, -size, 0, -size);
-    bezierVertex(-size/2, -size, -size/2, -size/3, 0, 0);
-    endShape(CLOSE);
-    fill(this.centerColor);
-    ellipse(0, 0, 10, 10);
-  }
-
-  // 雏菊 (不变)
-  drawDaisy() {
-    const petalSize = 25;
-    const numPetals = 10;
-    fill(this.petalColor);
-    for (let i = 0; i < numPetals; i++) {
-      const angle = map(i, 0, numPetals, 0, TWO_PI);
-      push();
-      rotate(angle);
-      ellipse(0, petalSize / 2, petalSize * 0.4, petalSize);
-      pop();
-    }
-    fill(this.centerColor);
-    ellipse(0, 0, petalSize * 0.6, petalSize * 0.6);
-  }
-
-  // 优化后的玫瑰 (不变)
-  drawRose() {
-    push();
-    const numPetals = 8;
-    const baseSize = 25;
-    const layers = 5;
-
-    // 花瓣绘制
-    for (let j = layers; j >= 0; j--) {
-      const currentSize = baseSize * (1 - j * 0.15);
-      
-      // 颜色渐变 (内深外浅)
-      const baseColor = this.petalColor;
-      const r = red(baseColor) - j * 15;
-      const g = green(baseColor) + j * 5;
-      const b = blue(baseColor) + j * 5;
-      fill(r, g, b);
-
-      // 螺旋效果
-      for (let i = 0; i < numPetals; i++) {
-        const angle = map(i, 0, numPetals, 0, TWO_PI);
-        push();
-        rotate(angle + j * PI/16); 
-        
-        // 绘制单个花瓣
-        beginShape();
-        vertex(0, 0);
-        const cp1x = currentSize * 0.2;
-        const cp1y = -currentSize * 0.5;
-        const cp2x = currentSize * 0.4;
-        const cp2y = -currentSize * 1.0;
-        const tipx = 0;
-        const tipy = -currentSize * 1.0;
-        
-        bezierVertex(cp1x, cp1y, cp2x, cp2y, tipx, tipy);
-        
-        const cp3x = -currentSize * 0.4;
-        const cp3y = -currentSize * 1.0;
-        const cp4x = -currentSize * 0.2;
-        const cp4y = -currentSize * 0.5;
-        
-        bezierVertex(cp3x, cp3y, cp4x, cp4y, 0, 0);
-        endShape(CLOSE);
-        
-        pop();
-      }
-    }
-    
-    // 绘制花心
-    fill(this.centerColor);
-    ellipse(0, 0, baseSize * 0.3, baseSize * 0.3);
-    
-    pop();
-  }
-  
-  // 向日葵 (不变)
-  drawSunflower() {
-    const petalSize = 35; 
-    const numPetals = 16;
-    const centerSize = 25;
-
-    // 绘制花瓣
-    fill(this.petalColor);
-    for (let i = 0; i < numPetals; i++) {
-      const angle = map(i, 0, numPetals, 0, TWO_PI);
-      push();
-      rotate(angle);
-      ellipse(0, petalSize * 0.5, petalSize * 0.3, petalSize);
-      pop();
-    }
-    
-    // 绘制花盘 (深棕色)
-    fill(this.centerColor);
-    ellipse(0, 0, centerSize, centerSize);
-    
-    // 绘制花盘的纹理
-    fill(100, 70, 0); 
-    const seedCount = 20;
-    for (let i = 0; i < seedCount; i++) {
-        const r = random(5, centerSize * 0.4);
-        const a = random(TWO_PI);
-        const x = cos(a) * r;
-        const y = sin(a) * r;
-        ellipse(x, y, 2, 2);
-    }
-  }
+  // 优化后的玫瑰 v2.0：更像花苞的螺旋效果
+  // 优化后的玫瑰 v2.0
+drawRose() {
+push();
+const numPetals = 8;
+@@ -170,26 +172,25 @@ class Flower {
 }
 
 
-// --- Vase 类：支持多种形状，瓶口对齐优化 (保持不变) ---
+// --- Vase 类：支持多种形状 ---
+// --- Vase 类：支持多种形状，瓶口对齐优化 ---
 class Vase {
-  constructor(x, y, w, h, type) {
-    this.bodyColor = color(150, 200, 250);
-    this.mossColor = color(100, 150, 100);
+constructor(x, y, w, h, type) {
+this.bodyColor = color(150, 200, 250);
+this.mossColor = color(100, 150, 100);
+    this.type = type; // 新增：花瓶类型
     this.type = type; 
-    this.set(x, y, w, h);
-  }
+this.set(x, y, w, h);
+}
 
-  set(x, y, w, h) {
-    this.x = x; this.y = y; this.w = w; this.h = h;
-    
-    this.mouthCY = this.y - this.h;
-    this.mouthH  = max(6, this.h * 0.012);
-    
+set(x, y, w, h) {
+this.x = x; this.y = y; this.w = w; this.h = h;
+
+    // 通用瓶口参数
+    // 瓶口中心Y和高度不变
+this.mouthCY = this.y - this.h;
+    this.mouthW  = this.w * 0.5;
+this.mouthH  = max(6, this.h * 0.012);
+    this.mouthA  = this.mouthW / 2;
+    this.mouthB  = this.mouthH / 2;
+
+    // 命中区域配置 (不变，使用通用区域)
+    // 瓶口宽度需要在 display() 中根据当前类型计算
+
     // 命中区域配置 (不变)
-    this.padX_ellipse  = max(12, this.w * 0.08); 
-    this.padY_ellipse  = max(10, this.h * 0.05); 
-    this.padY_above    = max(140, this.h * 0.70);
-    this.padY_below    = max(24,  this.h * 0.10);
-    this.padX_channel  = 6;
-  }
-
-  display() {
-    noStroke();
-    fill(this.bodyColor);
+this.padX_ellipse  = max(12, this.w * 0.08); 
+this.padY_ellipse  = max(10, this.h * 0.05); 
+this.padY_above    = max(140, this.h * 0.70);
+@@ -200,62 +201,90 @@ class Vase {
+display() {
+noStroke();
+fill(this.bodyColor);
     
     let topWidth = 0;
 
-    if (this.type === 0) {
+if (this.type === 0) {
+      // 形状 0: 梯形/经典 (原形状)
       // 形状 0: 经典梯形/直筒 (更细长的梯形)
       topWidth = this.w * 0.4; // 瓶身顶部宽度
       const baseW = this.w * 0.6; // 瓶身底部宽度
       
-      beginShape();
+beginShape();
+      vertex(this.x - this.w / 2, this.y);
+      vertex(this.x - this.w / 4, this.y - this.h);
+      vertex(this.x + this.w / 4, this.y - this.h);
+      vertex(this.x + this.w / 2, this.y);
       vertex(this.x - baseW / 2, this.y);
       vertex(this.x - topWidth / 2, this.y - this.h);
       vertex(this.x + topWidth / 2, this.y - this.h);
       vertex(this.x + baseW / 2, this.y);
-      endShape(CLOSE);
+endShape(CLOSE);
       
-    } else if (this.type === 1) {
+} else if (this.type === 1) {
+      // 形状 1: 圆形/现代 (底部圆润，上部变细)
+      const baseW = this.w * 0.7;
+      const topW = this.w * 0.3;
+      rect(this.x - topW/2, this.y - this.h, topW, this.h * 0.1);
       // 形状 1: 现代圆形 (更优美的卵形)
       topWidth = this.w * 0.3; 
       const maxW = this.w * 0.7; // 最大宽度
-      
-      beginShape();
+
+beginShape();
+      vertex(this.x - topW/2, this.y - this.h);
+      bezierVertex(this.x - baseW/2, this.y - this.h * 0.8,
+                   this.x - baseW/2, this.y - this.h * 0.2,
+                   this.x - baseW/2, this.y);
+      arc(this.x, this.y, baseW, this.h * 0.2, 0, PI);
+      vertex(this.x + baseW/2, this.y);
+      bezierVertex(this.x + baseW/2, this.y - this.h * 0.2,
+                   this.x + baseW/2, this.y - this.h * 0.8,
+                   this.x + topW/2, this.y - this.h);
       // 左侧曲线
       vertex(this.x - topWidth / 2, this.y - this.h);
       bezierVertex(this.x - maxW / 2, this.y - this.h * 0.9,
@@ -268,27 +112,35 @@ class Vase {
       bezierVertex(this.x + maxW / 2, this.y - this.h * 0.3,
                    this.x + maxW / 2, this.y - this.h * 0.9,
                    this.x + topWidth / 2, this.y - this.h);
-      endShape(CLOSE);
+endShape(CLOSE);
 
-    } else if (this.type === 2) {
+} else if (this.type === 2) {
+      // 形状 2: 曲线/复古 (中间收腰)
+      const baseW = this.w * 0.6;
+      const waistW = this.w * 0.4;
+      const topW = this.w * 0.5;
       // 形状 2: 复古曲线 (S形/收腰)
       topWidth = this.w * 0.45; // 瓶口宽度
       const baseW = this.w * 0.5; // 底部宽度
       const waistW = this.w * 0.35; // 收腰处的宽度
-      
-      beginShape();
-      // 底部
-      vertex(this.x - baseW / 2, this.y);
+
+beginShape();
+// 底部
+vertex(this.x - baseW / 2, this.y);
+      // 左侧曲线 (收腰)
       // 左侧曲线 (底部到腰)
-      bezierVertex(this.x - baseW * 0.6, this.y - this.h * 0.3,
-                   this.x - waistW / 2, this.y - this.h * 0.5,
+bezierVertex(this.x - baseW * 0.6, this.y - this.h * 0.3,
+this.x - waistW / 2, this.y - this.h * 0.5,
+                   this.x - topW / 2, this.y - this.h);
                    this.x - waistW / 2, this.y - this.h * 0.7);
       // 左侧曲线 (腰到顶)
       bezierVertex(this.x - waistW / 2, this.y - this.h * 0.8,
                    this.x - topWidth / 2, this.y - this.h * 0.9,
                    this.x - topWidth / 2, this.y - this.h);
       
-      // 顶部
+// 顶部
+      vertex(this.x + topW / 2, this.y - this.h);
+      // 右侧曲线
       vertex(this.x + topWidth / 2, this.y - this.h);
       
       // 右侧曲线 (顶到腰)
@@ -296,186 +148,52 @@ class Vase {
                    this.x + waistW / 2, this.y - this.h * 0.8,
                    this.x + waistW / 2, this.y - this.h * 0.7);
       // 右侧曲线 (腰到底)
-      bezierVertex(this.x + waistW / 2, this.y - this.h * 0.5,
-                   this.x + baseW * 0.6, this.y - this.h * 0.3,
-                   this.x + baseW / 2, this.y);
-      endShape(CLOSE);
-    }
+bezierVertex(this.x + waistW / 2, this.y - this.h * 0.5,
+this.x + baseW * 0.6, this.y - this.h * 0.3,
+this.x + baseW / 2, this.y);
+endShape(CLOSE);
+}
     
     // --- 瓶口绘制 ---
+    // 使用瓶身顶部宽度作为瓶口宽度
     this.mouthW = topWidth;
     this.mouthA = this.mouthW / 2; // 更新半轴
 
+    // 瓶口 (所有类型都绘制瓶口)
     // 瓶口外圈
-    fill(red(this.bodyColor), green(this.bodyColor), blue(this.bodyColor), 180);
-    ellipse(this.x, this.mouthCY, this.mouthW + 6, this.mouthH + 2);
+fill(red(this.bodyColor), green(this.bodyColor), blue(this.bodyColor), 180);
+ellipse(this.x, this.mouthCY, this.mouthW + 6, this.mouthH + 2);
     
     // 瓶口内圈（苔藓/水面）
-    fill(this.mossColor);
-    ellipse(this.x, this.mouthCY, this.mouthW, this.mouthH);
-  }
+fill(this.mossColor);
+ellipse(this.x, this.mouthCY, this.mouthW, this.mouthH);
+}
 
-  // 命中区域 (保持不变)
-  isInside(px, py) {
-    const cx = this.x, cy = this.mouthCY;
+  // 命中区域 (不变，只需要判断鼠标是否在瓶口上方)
+  // 命中区域 (不变，但使用更新后的 this.mouthA 计算)
+isInside(px, py) {
+const cx = this.x, cy = this.mouthCY;
 
-    // 1) 瓶口附近“扩大椭圆”
-    const a = this.mouthA + this.padX_ellipse;
-    const b = this.mouthB + this.padY_ellipse;
-    const dx = px - cx, dy = py - cy;
-    const inExpandedEllipse = (dx*dx)/(a*a) + (dy*dy)/(b*b) <= 1;
+@@ -273,9 +302,9 @@ class Vase {
+const inVerticalChannel = (px >= left && px <= right && py >= top && py <= bottom);
 
-    // 2) 上方竖向通道
-    const left  = cx - (this.mouthA + this.padX_channel);
-    const right = cx + (this.mouthA + this.padX_channel);
-    const top   = cy - this.padY_above;
-    const bottom= cy + this.padY_below;
-    const inVerticalChannel = (px >= left && px <= right && py >= top && py <= bottom);
-
-    // 3) 额外检查：是否点击在花瓶的身体上（用于切换花瓶类型）
-    const total_left = this.x - this.w * 0.7 / 2; 
+// 3) 额外检查：是否点击在花瓶的身体上（用于切换花瓶类型）
+    // 简化处理：如果点击在整个花瓶的矩形区域内（从瓶口到瓶底）
+    const total_left = this.x - this.w/2;
+    const total_right = this.x + this.w/2;
+    // 简化处理：检查是否在整个花瓶的最大宽度和高度范围内
+    const total_left = this.x - this.w * 0.7 / 2; // 略微放宽
     const total_right = this.x + this.w * 0.7 / 2;
-    const total_top = this.y - this.h - this.mouthH;
-    const total_bottom = this.y;
-    const onVaseBody = (px > total_left && px < total_right && py > total_top && py < total_bottom);
-
-    if (py > bottom && !onVaseBody) return false;
-
-    if (inExpandedEllipse || inVerticalChannel) return true;
-    
-    if (onVaseBody) return 'VASE';
-
-    return false;
-  }
+const total_top = this.y - this.h - this.mouthH;
+const total_bottom = this.y;
+const onVaseBody = (px > total_left && px < total_right && py > total_top && py < total_bottom);
+@@ -293,6 +322,10 @@ class Vase {
+}
 }
 
 // -------------------------------------------------------------
-// 以下为 p5.js 框架函数 (保持不变)
+// 以下为 p5.js 框架函数，逻辑与上一个版本基本一致
 // -------------------------------------------------------------
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
-
-  // 初始化花瓶
-  let vaseWidth = min(windowWidth * 0.35, 280);   
-  let vaseHeight = min(windowHeight * 0.55, 420); 
-  vase = new Vase(width / 2, height - 50, vaseWidth, vaseHeight, currentVaseType);
-}
-
-
-
-function draw() {
-  background(250, 250, 240); 
-
-  // 绘制花瓶
-  vase.display();
-
-  // 绘制所有花朵
-  for (let i = flowers.length - 1; i >= 0; i--) {
-    flowers[i].display();
-  }
-
-  // 检测鼠标是否靠近花朵
-  highlightedFlowerIndex = -1;
-  for (let i = flowers.length - 1; i >= 0; i--) {
-    if (dist(mouseX, mouseY, flowers[i].x, flowers[i].y) <= DELETE_RADIUS) {
-      highlightedFlowerIndex = i;
-      break; 
-    }
-  }
-
-  // 绘制高亮边框
-  if (highlightedFlowerIndex !== -1) {
-    noFill();
-    stroke(30, 144, 255); 
-    strokeWeight(2.5);
-    const f = flowers[highlightedFlowerIndex];
-    circle(f.x, f.y, DELETE_RADIUS * 2);
-  }
-
-
-  // 绘制提示文字
-  drawUI();
-}
-
-function drawUI() {
-  fill(50);
-  noStroke();
-  textSize(16);
-  textAlign(LEFT, TOP); 
-
-  const marginX = max(20, windowWidth * 0.02);
-  const marginY = max(20, windowHeight * 0.02);
-
-  const flowerNames = ["郁金香", "雏菊", "玫瑰", "向日葵"];
-  let flowerName = flowerNames[currentFlowerType];
-  const type_keys = "(T: 郁金香, D: 雏菊, R: 玫瑰, S: 向日葵)";
-  
-  text(`当前花朵类型: ${flowerName}  (按键切换花朵类型 ${type_keys})`, marginX, marginY);
-  text("点击鼠标左键放置花朵", marginX, marginY + 24);
-  text("按X删除选中花朵, 按Backspace撤销上一朵", marginX, marginY + 48);
-  
-  // 新增花瓶切换提示
-  const vaseNames = ["经典梯形", "现代圆形", "复古曲线"];
-  text(`当前花瓶类型: ${vaseNames[currentVaseType]} (点击花瓶切换形状)`, marginX, marginY + 72);
-
-  // 预览花朵显示在右上角
-  const previewX = windowWidth - marginX - 50;
-  const previewY = marginY + 30;
-  let preview = new Flower(previewX, previewY, 0, currentFlowerType);
-  preview.display();
-}
-
-
-// 鼠标点击事件：在花瓶区域内放置花朵或切换花瓶
-function mouseClicked() {
-  const insideStatus = vase.isInside(mouseX, mouseY);
-
-  if (insideStatus === true) {
-    // 状态为 true，表示在插花区域内
-    let flowerX = mouseX;
-    let flowerY = mouseY;
-    let stemLen = vase.y - vase.h - flowerY; 
-    
-    let newFlower = new Flower(flowerX, flowerY, stemLen, currentFlowerType);
-    flowers.push(newFlower);
-    
-  } else if (insideStatus === 'VASE') {
-    // 状态为 'VASE'，表示点击在花瓶主体上，切换花瓶类型
-    currentVaseType = (currentVaseType + 1) % 3;
-    
-    // 重新创建花瓶对象以应用新类型
-    let vaseWidth = min(windowWidth * 0.35, 280);   
-    let vaseHeight = min(windowHeight * 0.55, 420); 
-    vase = new Vase(width / 2, height - 50, vaseWidth, vaseHeight, currentVaseType);
-  }
-}
-
-function keyPressed() {
-  if (key === 't' || key === 'T') currentFlowerType = 0; 
-  else if (key === 'd' || key === 'D') currentFlowerType = 1; 
-  else if (key === 'r' || key === 'R') currentFlowerType = 2; 
-  else if (key === 's' || key === 'S') currentFlowerType = 3; 
-
-  if (key === 'x' || key === 'X') {
-    if (highlightedFlowerIndex !== -1) {
-      flowers.splice(highlightedFlowerIndex, 1);
-      highlightedFlowerIndex = -1; 
-    }
-  }
-
-  if (key === 'Backspace') {
-    if (flowers.length > 0) flowers.pop();
-  }
-}
-
-
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-
-  // 重新计算花瓶尺寸并保持当前类型
-  let vaseWidth = min(windowWidth * 0.35, 280);
-  let vaseHeight = min(windowHeight * 0.55, 420);
-
-  vase = new Vase(width / 2, height - 50, vaseWidth, vaseHeight, currentVaseType);
-}
+createCanvas(windowWidth, windowHeight);
