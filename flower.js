@@ -8,8 +8,6 @@ let highlightedFlowerIndex = -1;
 const DELETE_RADIUS = 28; // 鼠标与花中心小于这个距离就高亮
 
 
-// Flower 类保持不变，因为它不是本次优化的重点
-
 class Flower {
   constructor(x, y, stemHeight, type) {
     this.x = x;
@@ -18,6 +16,7 @@ class Flower {
     this.type = type; // 0: 郁金香, 1: 雏菊, 2: 玫瑰, 3: 向日葵
 
     this.stemColor   = color(50, 150, 50);
+    this.leafColor   = color(80, 180, 80, 200); // 新增：叶子颜色，带一点透明度
 
     // 按类型设定颜色
     if (this.type === 0) { // 郁金香
@@ -39,12 +38,15 @@ class Flower {
     push();
     translate(this.x, this.y);
 
-    // 花茎
+    // 1. 花茎 (最底层)
     stroke(this.stemColor);
     strokeWeight(2);
     line(0, 0, 0, this.stemHeight);
+    
+    // 2. 绿叶 (在花茎上方，花朵下方)
+    this.drawLeaves();
 
-    // 花朵
+    // 3. 花朵 (最上层)
     noStroke();
     if (this.type === 0) this.drawTulip();
     else if (this.type === 1) this.drawDaisy();
@@ -52,6 +54,39 @@ class Flower {
     else if (this.type === 3) this.drawSunflower(); 
     
     pop();
+  }
+  
+  // 新增：绘制叶子
+  drawLeaves() {
+    noStroke();
+    fill(this.leafColor);
+    
+    const leafCount = 2; // 每朵花绘制两片叶子
+    const leafBaseY = this.stemHeight * 0.5; // 叶子大致的位置
+
+    for(let i = 0; i < leafCount; i++) {
+        push();
+        const side = (i % 2 === 0) ? 1 : -1; // 交替在茎的两侧
+        const rotation = random(PI/6, PI/3) * side; // 旋转角度
+        const stemY = leafBaseY + random(-50, 50); // 随机叶子高度
+
+        translate(0, stemY);
+        rotate(rotation);
+        
+        // 叶子形状：使用贝塞尔曲线模拟叶片
+        const w = 15;
+        const h = 50;
+        
+        beginShape();
+        vertex(0, 0);
+        // 上半部曲线
+        bezierVertex(w, -h/4, w, -h * 0.8, 0, -h); 
+        // 下半部曲线
+        bezierVertex(-w, -h * 0.8, -w, -h/4, 0, 0);
+        endShape(CLOSE);
+        
+        pop();
+    }
   }
 
   // 郁金香 (不变)
@@ -83,7 +118,7 @@ class Flower {
     ellipse(0, 0, petalSize * 0.6, petalSize * 0.6);
   }
 
-  // 优化后的玫瑰 v2.0
+  // 优化后的玫瑰 (不变)
   drawRose() {
     push();
     const numPetals = 8;
@@ -105,9 +140,9 @@ class Flower {
       for (let i = 0; i < numPetals; i++) {
         const angle = map(i, 0, numPetals, 0, TWO_PI);
         push();
-        rotate(angle + j * PI/16); // 增加层间旋转
+        rotate(angle + j * PI/16); 
         
-        // 绘制单个花瓣（使用贝塞尔曲线模拟褶皱）
+        // 绘制单个花瓣
         beginShape();
         vertex(0, 0);
         const cp1x = currentSize * 0.2;
@@ -172,7 +207,7 @@ class Flower {
 }
 
 
-// --- Vase 类：支持多种形状，瓶口对齐优化 ---
+// --- Vase 类：支持多种形状，瓶口对齐优化 (保持不变) ---
 class Vase {
   constructor(x, y, w, h, type) {
     this.bodyColor = color(150, 200, 250);
@@ -184,12 +219,9 @@ class Vase {
   set(x, y, w, h) {
     this.x = x; this.y = y; this.w = w; this.h = h;
     
-    // 瓶口中心Y和高度不变
     this.mouthCY = this.y - this.h;
     this.mouthH  = max(6, this.h * 0.012);
     
-    // 瓶口宽度需要在 display() 中根据当前类型计算
-
     // 命中区域配置 (不变)
     this.padX_ellipse  = max(12, this.w * 0.08); 
     this.padY_ellipse  = max(10, this.h * 0.05); 
@@ -271,7 +303,6 @@ class Vase {
     }
     
     // --- 瓶口绘制 ---
-    // 使用瓶身顶部宽度作为瓶口宽度
     this.mouthW = topWidth;
     this.mouthA = this.mouthW / 2; // 更新半轴
 
@@ -284,7 +315,7 @@ class Vase {
     ellipse(this.x, this.mouthCY, this.mouthW, this.mouthH);
   }
 
-  // 命中区域 (不变，但使用更新后的 this.mouthA 计算)
+  // 命中区域 (保持不变)
   isInside(px, py) {
     const cx = this.x, cy = this.mouthCY;
 
@@ -302,20 +333,16 @@ class Vase {
     const inVerticalChannel = (px >= left && px <= right && py >= top && py <= bottom);
 
     // 3) 额外检查：是否点击在花瓶的身体上（用于切换花瓶类型）
-    // 简化处理：检查是否在整个花瓶的最大宽度和高度范围内
-    const total_left = this.x - this.w * 0.7 / 2; // 略微放宽
+    const total_left = this.x - this.w * 0.7 / 2; 
     const total_right = this.x + this.w * 0.7 / 2;
     const total_top = this.y - this.h - this.mouthH;
     const total_bottom = this.y;
     const onVaseBody = (px > total_left && px < total_right && py > total_top && py < total_bottom);
 
-    // 不允许更低处（远离瓶口的瓶身）
     if (py > bottom && !onVaseBody) return false;
 
-    // 如果在插花区域内，返回 true (可以插花)
     if (inExpandedEllipse || inVerticalChannel) return true;
     
-    // 如果点击在花瓶身体上（且不在插花区域），返回 'VASE' 信号
     if (onVaseBody) return 'VASE';
 
     return false;
@@ -323,7 +350,7 @@ class Vase {
 }
 
 // -------------------------------------------------------------
-// 以下为 p5.js 框架函数，逻辑与上一个版本基本一致
+// 以下为 p5.js 框架函数 (保持不变)
 // -------------------------------------------------------------
 
 function setup() {
