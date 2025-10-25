@@ -1,7 +1,7 @@
 // --- 全局变量 ---
 let flowers = [];      // 存储所有花朵对象的数组
 let vase;              // 花瓶对象
-let currentFlowerType = 0; // 当前选择的花朵类型 (0: 郁金香, 1: 雏菊)
+let currentFlowerType = 0; // 当前选择的花朵类型 (0: 郁金香, 1: 雏菊, 2: 玫瑰, 3: 向日葵)
 
 let highlightedFlowerIndex = -1;
 const DELETE_RADIUS = 28; // 鼠标与花中心小于这个距离就高亮
@@ -12,7 +12,7 @@ class Flower {
     this.x = x;
     this.y = y;
     this.stemHeight = stemHeight;
-    this.type = type; // 0: 郁金香, 1: 雏菊, 2: 玫瑰
+    this.type = type; // 0: 郁金香, 1: 雏菊, 2: 玫瑰, 3: 向日葵
 
     this.stemColor   = color(50, 150, 50);
 
@@ -26,6 +26,9 @@ class Flower {
     } else if (this.type === 2) { // 玫瑰
       this.petalColor  = color(220, 0, 70);  // 深红
       this.centerColor = color(150, 0, 30);
+    } else if (this.type === 3) { // 向日葵
+      this.petalColor  = color(255, 200, 0); // 亮黄
+      this.centerColor = color(50, 50, 50);  // 深棕色花盘
     }
   }
 
@@ -43,7 +46,8 @@ class Flower {
     if (this.type === 0) this.drawTulip();
     else if (this.type === 1) this.drawDaisy();
     else if (this.type === 2) this.drawRose();
-
+    else if (this.type === 3) this.drawSunflower(); // 新增向日葵
+    
     pop();
   }
 
@@ -76,33 +80,81 @@ class Flower {
     ellipse(0, 0, petalSize * 0.6, petalSize * 0.6);
   }
 
-  // 玫瑰
+  // 优化后的玫瑰
   drawRose() {
     push();
-    const layers = 6;       // 花瓣层数
-    const baseSize = 20;    // 最内层大小
-    noStroke();
-    for (let i = 0; i < layers; i++) {
-      const size = baseSize + i * 6;
-      fill(this.petalColor.levels[0], this.petalColor.levels[1] - i * 10, this.petalColor.levels[2] - i * 10);
+    const petalCount = 12;
+    const radius = 25;
+    
+    // 绘制外部花瓣（螺旋式层次）
+    for (let i = 0; i < petalCount; i++) {
+      const angle = map(i, 0, petalCount, 0, TWO_PI);
+      
+      // 颜色渐变 (模拟阴影)
+      const baseColor = this.petalColor;
+      // 使颜色随层数递进变深
+      const r = red(baseColor)   - i * 5;
+      const g = green(baseColor) - i * 5;
+      const b = blue(baseColor)  - i * 5;
+      fill(r, g, b);
+      
+      // 使用更像花瓣的形状
+      push();
+      rotate(angle + frameCount * 0.005); // 轻微动画
+      
+      // 花瓣主体
       beginShape();
-      for (let a = 0; a < TWO_PI; a += PI / 8) {
-        const r = size + sin(a * 3 + frameCount * 0.02) * 2; // 花瓣波动
-        const x = cos(a) * r * 0.6;
-        const y = sin(a) * r * 0.6;
-        vertex(x, y);
-      }
+      vertex(0, 0);
+      bezierVertex(radius * 0.3, -radius * 0.5, radius * 0.3, -radius * 1.5, 0, -radius * 1.5);
+      bezierVertex(-radius * 0.3, -radius * 1.5, -radius * 0.3, -radius * 0.5, 0, 0);
       endShape(CLOSE);
+      
+      pop();
     }
-    // 花心
+    
+    // 绘制花心
     fill(this.centerColor);
-    ellipse(0, 0, 10, 10);
+    ellipse(0, 0, radius * 0.6, radius * 0.6);
+    
     pop();
+  }
+  
+  // 新增向日葵
+  drawSunflower() {
+    const petalSize = 35; // 花瓣长度
+    const numPetals = 16; // 花瓣数量
+    const centerSize = 25; // 花盘大小
+
+    // 绘制花瓣
+    fill(this.petalColor);
+    for (let i = 0; i < numPetals; i++) {
+      const angle = map(i, 0, numPetals, 0, TWO_PI);
+      push();
+      rotate(angle);
+      // 向日葵花瓣形状更细长
+      ellipse(0, petalSize * 0.5, petalSize * 0.3, petalSize);
+      pop();
+    }
+    
+    // 绘制花盘 (深棕色)
+    fill(this.centerColor);
+    ellipse(0, 0, centerSize, centerSize);
+    
+    // 绘制花盘的纹理（可选：用点或小圆）
+    fill(100, 70, 0); // 略浅的棕色
+    const seedCount = 20;
+    for (let i = 0; i < seedCount; i++) {
+        const r = random(5, centerSize * 0.4);
+        const a = random(TWO_PI);
+        const x = cos(a) * r;
+        const y = sin(a) * r;
+        ellipse(x, y, 2, 2);
+    }
   }
 }
 
 
-// --- Vase 类：代表花瓶 ---
+// --- Vase 类：代表花瓶 (不变) ---
 class Vase {
   constructor(x, y, w, h) {
     this.bodyColor = color(150, 200, 250);
@@ -230,13 +282,14 @@ function drawUI() {
   const marginY = max(20, windowHeight * 0.02);
 
   // 文本内容
-  let currentTypeText = currentFlowerType === 0 ? "郁金香" : "雏菊";
-  let flowerName = ["郁金香", "雏菊", "玫瑰"][currentFlowerType];
-  text(`当前花朵类型: ${flowerName}  (按键切换花朵类型, T: 郁金香, D: 雏菊, R: 玫瑰)`, marginX, marginY);
+  const flowerNames = ["郁金香", "雏菊", "玫瑰", "向日葵"];
+  let flowerName = flowerNames[currentFlowerType];
+  const type_keys = "(T: 郁金香, D: 雏菊, R: 玫瑰, S: 向日葵)";
+  
+  text(`当前花朵类型: ${flowerName}  (按键切换花朵类型 ${type_keys})`, marginX, marginY);
 
-  // text(`当前花朵类型: ${currentTypeText}  (T: 郁金香, D: 雏菊)`, marginX, marginY);
   text("点击鼠标左键放置花朵", marginX, marginY + 24);
-  text("按X删除选中花朵", marginX, marginY + 48);
+  text("按X删除选中花朵, 按Backspace撤销上一朵", marginX, marginY + 48);
 
   // 预览花朵显示在右上角（自适应）
   const previewX = windowWidth - marginX - 50;
@@ -255,6 +308,8 @@ function mouseClicked() {
     let flowerY = mouseY;
     
     // 茎长 = 鼠标Y坐标 - 瓶口Y坐标 (这样茎就能插到花瓶底部)
+    // 茎应该从花朵中心(flowerX, flowerY)延伸到瓶口中心y（或略低于瓶口）
+    // 为了美观和逻辑，让花茎延伸到瓶口底部的y坐标
     let stemLen = vase.y - vase.h - flowerY; 
     
     // 创建新的花朵对象
@@ -269,6 +324,7 @@ function keyPressed() {
   if (key === 't' || key === 'T') currentFlowerType = 0; // 郁金香
   else if (key === 'd' || key === 'D') currentFlowerType = 1; // 雏菊
   else if (key === 'r' || key === 'R') currentFlowerType = 2; // 玫瑰
+  else if (key === 's' || key === 'S') currentFlowerType = 3; // 向日葵 (新增)
 
   // 删除高亮花朵
   if (key === 'x' || key === 'X') {
@@ -296,5 +352,3 @@ function windowResized() {
 
   vase = new Vase(width / 2, height - 50, vaseWidth, vaseHeight);
 }
-
-
