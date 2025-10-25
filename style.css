@@ -1,0 +1,8 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* 防止滚动条出现 */
+}
+canvas {
+  display: block; /* 移除画布下方的空白 */
+}
